@@ -154,6 +154,14 @@ html, body {
 }
 .room-code-input:focus { border-color: var(--brass); }
 
+.text-field-input {
+  width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-border);
+  border-radius: 0.7rem; padding: 0.7rem 0.9rem; color: var(--ivory); font-size: 0.95rem; outline: none;
+  font-family: 'Outfit', sans-serif;
+}
+.text-field-input:focus { border-color: var(--brass); }
+.text-field-input::placeholder { color: rgba(242,233,216,0.35); }
+
 .room-code-display {
   font-family: 'Cinzel', serif; font-weight: 800; font-size: 2.4rem; letter-spacing: 0.35em;
   color: var(--brass-bright); background: rgba(0,0,0,0.3); border: 1px dashed var(--panel-border);
@@ -369,6 +377,7 @@ html, body {
       <p class="eyebrow">A Game Of</p>
       <h1 class="brand-title">Regent</h1>
       <p class="brand-sub">Sixty-four squares. One throne.</p>
+      <p id="welcome-back" class="room-pill hidden" style="display:inline-flex;margin-top:0.9rem;"><i class="fa-solid fa-circle-user mr-2"></i><span id="welcome-back-name"></span></p>
     </header>
 
     <!-- step 1: pick a mode -->
@@ -539,6 +548,24 @@ html, body {
   </main>
 </div>
 
+<!-- ============================== PROFILE OVERLAY ============================== -->
+<div id="profile-overlay" class="modal-overlay hidden">
+  <div class="glass-card promotion-card" style="width:min(92vw,380px);">
+    <p class="panel-title text-center" style="margin-bottom:0.4rem;">Who's Playing?</p>
+    <p class="brand-sub text-center" style="margin-top:0;margin-bottom:1.25rem;">Used to show your name to opponents in multiplayer.</p>
+    <div class="mb-4">
+      <p class="field-label mb-2">Username</p>
+      <input id="profile-username" maxlength="24" placeholder="e.g. KnightRider" class="text-field-input" autocomplete="off" />
+    </div>
+    <div class="mb-2">
+      <p class="field-label mb-2">Email</p>
+      <input id="profile-email" type="email" placeholder="you@example.com" class="text-field-input" autocomplete="off" />
+    </div>
+    <p id="profile-error" class="hidden" style="color:var(--rose);font-size:0.8rem;margin-top:0.5rem;"></p>
+    <button id="btn-save-profile" class="btn-primary w-full mt-5">Continue <i class="fa-solid fa-arrow-right ml-2"></i></button>
+  </div>
+</div>
+
 <!-- ============================== PROMOTION OVERLAY ============================== -->
 <div id="promotion-overlay" class="modal-overlay hidden">
   <div class="glass-card promotion-card">
@@ -626,7 +653,7 @@ const ready = (async () => {
   }
 })();
 
-async function createRoom(initialStateBlob) {
+async function createRoom(initialStateBlob, name) {
   await ready;
   let roomId, snap;
   for (let attempt = 0; attempt < 6; attempt++) {
@@ -638,14 +665,14 @@ async function createRoom(initialStateBlob) {
   await set(roomRef, {
     status: "waiting",
     createdAt: serverTimestamp(),
-    players: { w: { uid, connected: true } },
+    players: { w: { uid, connected: true, name: name || "Player" } },
     state: initialStateBlob
   });
   onDisconnect(ref(db, `rooms/${roomId}/players/w/connected`)).set(false);
   return roomId;
 }
 
-async function joinRoom(roomId) {
+async function joinRoom(roomId, name) {
   await ready;
   roomId = (roomId || "").trim().replace(/\D/g, "");
   const roomRef = ref(db, `rooms/${roomId}`);
@@ -656,7 +683,7 @@ async function joinRoom(roomId) {
   if (existingB && existingB.uid !== uid) {
     throw new Error("That room is already full.");
   }
-  await update(ref(db, `rooms/${roomId}/players/b`), { uid, connected: true });
+  await update(ref(db, `rooms/${roomId}/players/b`), { uid, connected: true, name: name || "Player" });
   await update(roomRef, { status: "active" });
   onDisconnect(ref(db, `rooms/${roomId}/players/b/connected`)).set(false);
   return roomId;
@@ -1300,8 +1327,44 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
   let appliedMoveCount = 0;
   let dragInfo = null;
   let audioCtx = null;
+  let opponentName = null;   // multiplayer: name of the connected opponent, once known
 
   const key = (r, c) => r + ',' + c;
+
+  /* ---------------------------------------------------------------------
+     Player profile (username + email) — stored locally, shown in-app
+     and threaded through multiplayer rooms so opponents see your name.
+     --------------------------------------------------------------------- */
+  const PROFILE_KEY = 'regent_profile_v1';
+  function getProfile() {
+    try { return JSON.parse(localStorage.getItem(PROFILE_KEY)); } catch (e) { return null; }
+  }
+  function saveProfile(p) { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
+  function myDisplayName() { const p = getProfile(); return (p && p.username) || 'You'; }
+
+  function initProfile() {
+    const profile = getProfile();
+    if (!profile || !profile.username) {
+      $('profile-overlay').classList.remove('hidden');
+      return;
+    }
+    $('welcome-back-name').textContent = `Welcome back, ${profile.username}`;
+    $('welcome-back').classList.remove('hidden');
+  }
+
+  $('btn-save-profile').addEventListener('click', () => {
+    const username = $('profile-username').value.trim();
+    const email = $('profile-email').value.trim();
+    const errEl = $('profile-error');
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!username) { errEl.textContent = 'Enter a username.'; errEl.classList.remove('hidden'); return; }
+    if (!emailOk) { errEl.textContent = 'Enter a valid email.'; errEl.classList.remove('hidden'); return; }
+    errEl.classList.add('hidden');
+    saveProfile({ username, email });
+    $('profile-overlay').classList.add('hidden');
+    $('welcome-back-name').textContent = `Welcome, ${username}`;
+    $('welcome-back').classList.remove('hidden');
+  });
 
   /* ---------------------------------------------------------------------
      Orientation <-> screen mapping
@@ -1527,8 +1590,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
     ['material-bottom', 'material-bottom-m'].forEach((id) => { $(id).textContent = diffStr; });
     ['material-top', 'material-top-m'].forEach((id) => { $(id).textContent = diff < 0 ? ('+' + (-diff)) : ''; });
 
-    const nameTop = mode === 'single' ? `House Engine · ${cap(aiDifficulty)}` : 'Opponent';
-    const nameBottom = 'You';
+    const nameTop = mode === 'single' ? `House Engine · ${cap(aiDifficulty)}` : (opponentName || 'Opponent');
+    const nameBottom = myDisplayName();
     ['name-top'].forEach((id) => { if ($(id)) $(id).textContent = nameTop; });
     ['name-bottom'].forEach((id) => { if ($(id)) $(id).textContent = nameBottom; });
 
@@ -1805,6 +1868,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
     if (mode === 'multi' && roomId) window.Multiplayer.markLeft(roomId, myColor);
     roomId = null;
     mode = null;
+    opponentName = null;
   }
 
   /* ---- mode-select screen wiring ---- */
@@ -1842,8 +1906,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
     $('multi-error').classList.add('hidden');
     try {
       mode = 'multi'; myColor = 'w'; orientation = 'w';
+      opponentName = null;
       state = E.createInitialState();
-      roomId = await window.Multiplayer.createRoom(serializeState(state));
+      roomId = await window.Multiplayer.createRoom(serializeState(state), myDisplayName());
       appliedMoveCount = 0;
       $('room-code-display').textContent = roomId;
       showModePanel('panel-waiting');
@@ -1863,7 +1928,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
     if (code.length !== 6) { showMultiError(new Error('Enter the 6-digit room code.')); return; }
     try {
       mode = 'multi'; myColor = 'b'; orientation = 'b';
-      roomId = await window.Multiplayer.joinRoom(code);
+      opponentName = null;
+      roomId = await window.Multiplayer.joinRoom(code, myDisplayName());
       appliedMoveCount = 0;
       unsubscribeRoom = window.Multiplayer.listenRoom(roomId, onRoomUpdate);
       enterGameScreen();
@@ -1996,6 +2062,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
       const opp = room.players && room.players[oppColor];
       if (opp && opp.connected === false) showDisconnectBanner();
       else hideDisconnectBanner();
+      const newOppName = (opp && opp.name) || null;
+      if (newOppName !== opponentName) { opponentName = newOppName; renderSidePanels(); }
     }
     if (!room.state) return;
     const remoteCount = room.state.moveCount || 0;
@@ -2029,6 +2097,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
      Init
      --------------------------------------------------------------------- */
   showModePanel('mode-pick');
+  initProfile();
 })();
 
 </script>
