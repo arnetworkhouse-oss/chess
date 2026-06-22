@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Regent — Online Chess</title>
+ <link rel="icon" href="https://raw.githubusercontent.com/arnetworkhouse-oss/chess/main/chess.png" type="image/png">
+<title>Minds — Online Chess</title>
 
 <!-- Tailwind CSS (utility classes for layout/spacing; visual theme lives in style.css) -->
 <script src="https://cdn.tailwindcss.com"></script>
@@ -313,7 +314,9 @@ html, body {
 }
 
 /* --------------------------------------------------------- side panels */
-.player-card { display: flex; align-items: center; gap: 0.7rem; background: var(--panel-glass); border: 1px solid var(--panel-border); border-radius: 0.9rem; padding: 0.7rem 0.85rem; backdrop-filter: blur(14px); }
+.player-card { display: flex; align-items: center; gap: 0.7rem; background: var(--panel-glass); border: 1px solid var(--panel-border); border-radius: 0.9rem; padding: 0.7rem 0.85rem; backdrop-filter: blur(14px); transition: border-color 0.25s ease, box-shadow 0.25s ease; }
+.player-card.is-active-turn { border-color: var(--brass); box-shadow: 0 0 0 1px rgba(212,175,102,0.25), 0 0 18px rgba(212,175,102,0.15); }
+.player-card.is-active-turn .player-name { color: var(--brass-bright); }
 .player-avatar { width: 2.3rem; height: 2.3rem; border-radius: 0.6rem; background: linear-gradient(135deg, var(--brass-dim), var(--ebony)); display: flex; align-items: center; justify-content: center; color: var(--brass-bright); flex-shrink: 0; }
 .player-name { font-weight: 600; font-size: 0.85rem; color: var(--ivory); }
 .captured-row { display: flex; flex-wrap: wrap; gap: 0.1rem; min-height: 1.2rem; line-height: 1; opacity: 0.85; }
@@ -370,14 +373,17 @@ html, body {
 <div class="bg-grain" aria-hidden="true"></div>
 
 <!-- ============================== MODE SELECT ============================== -->
-<div id="mode-screen" class="screen-overlay flex items-center justify-center p-4">
-  <div class="w-full max-w-3xl">
+<div id="mode-screen" class="screen-overlay flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-3xl flex-1 flex flex-col items-center justify-center">
 
     <header class="text-center mb-8 sm:mb-10">
       <p class="eyebrow">A Game Of</p>
-      <h1 class="brand-title">Regent</h1>
-      <p class="brand-sub">Sixty-four squares. One throne.</p>
-      <p id="welcome-back" class="room-pill hidden" style="display:inline-flex;margin-top:0.9rem;"><i class="fa-solid fa-circle-user mr-2"></i><span id="welcome-back-name"></span></p>
+      <h1 class="brand-title">Minds</h1>
+      <p class="brand-sub">64 squares. 1 throne.</p>
+      <div id="welcome-back" style="display:none;align-items:center;justify-content:center;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+        <span class="room-pill" style="display:inline-flex;"><i class="fa-solid fa-circle-user mr-2"></i><span id="welcome-back-name"></span></span>
+        <button id="btn-logout" style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:0.28rem 0.65rem;border-radius:999px;border:1px solid rgba(212,175,102,0.3);background:rgba(194,85,79,0.12);color:rgba(194,85,79,0.85);cursor:pointer;" onmouseover="this.style.background='rgba(194,85,79,0.28)'" onmouseout="this.style.background='rgba(194,85,79,0.12)'"><i class="fa-solid fa-right-from-bracket mr-1"></i>Logout</button>
+      </div>
     </header>
 
     <!-- step 1: pick a mode -->
@@ -397,14 +403,14 @@ html, body {
     <!-- step 2a: single player setup -->
     <div id="panel-single" class="setup-panel hidden">
       <button class="back-link" data-back="mode-pick"><i class="fa-solid fa-arrow-left"></i> Back</button>
-      <h2 class="panel-title">Single Player</h2>
+      <h2 class="panel-title">Choose Mode</h2>
 
       <div class="mb-6">
-        <p class="field-label">Difficulty</p>
-        <div class="grid grid-cols-3 gap-3" id="difficulty-group">
-          <button class="choice-pill" data-difficulty="easy">Easy</button>
-          <button class="choice-pill is-active" data-difficulty="medium">Medium</button>
-          <button class="choice-pill" data-difficulty="hard">Hard</button>
+        <p class="field-label">Select Opponent</p>
+        <div class="grid grid-cols-1 gap-3" id="difficulty-group">
+          <button class="choice-pill" data-difficulty="hard"><i class="fa-solid fa-skull mr-2"></i>Aran <span style="opacity:0.6;font-size:0.8em;">(Expert)</span></button>
+          <button class="choice-pill is-active" data-difficulty="medium"><i class="fa-solid fa-ghost mr-2"></i>Void <span style="opacity:0.6;font-size:0.8em;">(Casual)</span></button>
+          <button class="choice-pill" data-difficulty="easy"><i class="fa-solid fa-feather mr-2"></i>Torpid <span style="opacity:0.6;font-size:0.8em;">(Beginner)</span></button>
         </div>
       </div>
 
@@ -452,6 +458,15 @@ html, body {
     </div>
 
   </div>
+
+  <!-- footer pinned to bottom -->
+  <footer style="width:100%;text-align:center;padding:1.25rem 1rem;position:relative;z-index:2;flex-shrink:0;">
+    <p style="font-size:0.78rem;color:rgba(242,233,216,0.4);letter-spacing:0.04em;line-height:2;">
+      Game maintained by <a href="https://arnetworkhouse.in" target="_blank" style="color:var(--brass);text-decoration:none;font-weight:600;" onmouseover="this.style.color='var(--brass-bright)'" onmouseout="this.style.color='var(--brass)'">AR NETWORK HOUSE</a>
+      &nbsp;|&nbsp;<a href="https://arnetworkhouse.in/more.html" target="_blank" style="color:var(--brass);text-decoration:none;font-weight:600;" onmouseover="this.style.color='var(--brass-bright)'" onmouseout="this.style.color='var(--brass)'">MORE GAMES</a>
+      &nbsp;|&nbsp;<a href="https://arnetworkhouse-oss.github.io/chess/feedback_chess_game.html" target="_blank" style="color:var(--brass);text-decoration:none;font-weight:600;" onmouseover="this.style.color='var(--brass-bright)'" onmouseout="this.style.color='var(--brass)'">RATE US</a>
+    </p>
+  </footer>
 </div>
 
 <!-- ============================== GAME SCREEN ============================== -->
@@ -489,9 +504,18 @@ html, body {
         <span class="material-badge" id="material-top"></span>
       </div>
 
-      <div class="movelog-card">
+      <div class="movelog-card" style="flex:1;">
         <p class="field-label mb-2"><i class="fa-solid fa-scroll mr-1.5"></i>Move Log</p>
         <div id="move-log" class="move-log"></div>
+      </div>
+
+      <div class="player-card" id="player-card-bottom">
+        <div class="player-avatar" id="avatar-bottom"><i class="fa-solid fa-chess-king"></i></div>
+        <div class="flex-1 min-w-0">
+          <p class="player-name" id="name-bottom">You</p>
+          <div class="captured-row" id="captured-bottom"></div>
+        </div>
+        <span class="material-badge" id="material-bottom"></span>
       </div>
     </aside>
 
@@ -509,23 +533,14 @@ html, body {
       <div class="mobile-docks">
         <div class="player-card" id="player-card-top-m">
           <div class="player-avatar" id="avatar-top-m"><i class="fa-solid fa-chess-king"></i></div>
-          <div class="flex-1 min-w-0"><div class="captured-row" id="captured-top-m"></div></div>
+          <div class="flex-1 min-w-0"><p class="player-name" id="name-top-m">Opponent</p><div class="captured-row" id="captured-top-m"></div></div>
           <span class="material-badge" id="material-top-m"></span>
         </div>
       </div>
     </div>
 
-    <!-- right: my dock + status -->
+    <!-- right: status only -->
     <aside class="side-panel side-panel-right">
-      <div class="player-card" id="player-card-bottom">
-        <div class="player-avatar" id="avatar-bottom"><i class="fa-solid fa-chess-king"></i></div>
-        <div class="flex-1 min-w-0">
-          <p class="player-name" id="name-bottom">You</p>
-          <div class="captured-row" id="captured-bottom"></div>
-        </div>
-        <span class="material-badge" id="material-bottom"></span>
-      </div>
-
       <div class="status-card">
         <p class="field-label mb-2"><i class="fa-solid fa-circle-info mr-1.5"></i>Status</p>
         <p id="status-text" class="status-text">White to move.</p>
@@ -536,7 +551,7 @@ html, body {
     <div class="mobile-docks mobile-docks-bottom">
       <div class="player-card" id="player-card-bottom-m">
         <div class="player-avatar" id="avatar-bottom-m"><i class="fa-solid fa-chess-king"></i></div>
-        <div class="flex-1 min-w-0"><div class="captured-row" id="captured-bottom-m"></div></div>
+        <div class="flex-1 min-w-0"><p class="player-name" id="name-bottom-m">You</p><div class="captured-row" id="captured-bottom-m"></div></div>
         <span class="material-badge" id="material-bottom-m"></span>
       </div>
       <details class="movelog-card mt-3">
@@ -1336,20 +1351,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
      and threaded through multiplayer rooms so opponents see your name.
      --------------------------------------------------------------------- */
   const PROFILE_KEY = 'regent_profile_v1';
+  // ▼ Paste your Apps Script Web App URL (doGet handler, Deploy → Anyone)
+  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycby97fIZe8Qac4TiafnyP_wfI3OJ1kcoiYMsQBwMPgd-HjtKAOF16LTSdTW65BrY5z78rA/exec';
+
   function getProfile() {
     try { return JSON.parse(localStorage.getItem(PROFILE_KEY)); } catch (e) { return null; }
   }
   function saveProfile(p) { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
   function myDisplayName() { const p = getProfile(); return (p && p.username) || 'You'; }
 
+  async function pushToSheets(username, email) {
+    if (!SHEETS_URL || SHEETS_URL === 'YOUR_APPS_SCRIPT_URL_HERE') return;
+    try {
+      const url = SHEETS_URL + '?username=' + encodeURIComponent(username) + '&email=' + encodeURIComponent(email) + '&ts=' + encodeURIComponent(new Date().toISOString());
+      await fetch(url, { method: 'GET', mode: 'no-cors' });
+    } catch (e) { /* silent */ }
+  }
+
+  function showWelcome(name, isNew) {
+    $('welcome-back-name').textContent = (isNew ? 'Welcome, ' : 'Welcome back, ') + name;
+    $('welcome-back').style.display = 'flex';
+  }
+  function hideWelcome() {
+    $('welcome-back').style.display = 'none';
+  }
+
   function initProfile() {
     const profile = getProfile();
-    if (!profile || !profile.username) {
-      $('profile-overlay').classList.remove('hidden');
-      return;
-    }
-    $('welcome-back-name').textContent = `Welcome back, ${profile.username}`;
-    $('welcome-back').classList.remove('hidden');
+    if (!profile || !profile.username) { $('profile-overlay').classList.remove('hidden'); return; }
+    showWelcome(profile.username, false);
   }
 
   $('btn-save-profile').addEventListener('click', () => {
@@ -1360,10 +1390,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
     if (!username) { errEl.textContent = 'Enter a username.'; errEl.classList.remove('hidden'); return; }
     if (!emailOk) { errEl.textContent = 'Enter a valid email.'; errEl.classList.remove('hidden'); return; }
     errEl.classList.add('hidden');
+    const existing = getProfile();
     saveProfile({ username, email });
+    if (!existing || !existing.username) pushToSheets(username, email);
     $('profile-overlay').classList.add('hidden');
-    $('welcome-back-name').textContent = `Welcome, ${username}`;
-    $('welcome-back').classList.remove('hidden');
+    showWelcome(username, true);
+  });
+
+  $('btn-logout').addEventListener('click', () => {
+    if (!confirm('Log out? Your username and email will be cleared.')) return;
+    localStorage.removeItem(PROFILE_KEY);
+    hideWelcome();
+    $('profile-username').value = '';
+    $('profile-email').value = '';
+    $('profile-error').classList.add('hidden');
+    $('profile-overlay').classList.remove('hidden');
   });
 
   /* ---------------------------------------------------------------------
@@ -1590,10 +1631,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
     ['material-bottom', 'material-bottom-m'].forEach((id) => { $(id).textContent = diffStr; });
     ['material-top', 'material-top-m'].forEach((id) => { $(id).textContent = diff < 0 ? ('+' + (-diff)) : ''; });
 
-    const nameTop = mode === 'single' ? `House Engine · ${cap(aiDifficulty)}` : (opponentName || 'Opponent');
+    const aiNameMap = { easy: 'Torpid', medium: 'Void', hard: 'Aran' };
+    const nameTop = mode === 'single' ? (aiNameMap[aiDifficulty] || cap(aiDifficulty)) : (opponentName || 'Opponent');
     const nameBottom = myDisplayName();
-    ['name-top'].forEach((id) => { if ($(id)) $(id).textContent = nameTop; });
-    ['name-bottom'].forEach((id) => { if ($(id)) $(id).textContent = nameBottom; });
+    ['name-top', 'name-top-m'].forEach((id) => { if ($(id)) $(id).textContent = nameTop; });
+    ['name-bottom', 'name-bottom-m'].forEach((id) => { if ($(id)) $(id).textContent = nameBottom; });
+
+    // turn highlight on player cards
+    const topIsActive = state.turn === topColor;
+    ['player-card-top', 'player-card-top-m'].forEach((id) => {
+      const el = $(id); if (!el) return;
+      el.classList.toggle('is-active-turn', !state.result && topIsActive);
+    });
+    ['player-card-bottom', 'player-card-bottom-m'].forEach((id) => {
+      const el = $(id); if (!el) return;
+      el.classList.toggle('is-active-turn', !state.result && !topIsActive);
+    });
 
     // turn indicator
     const dot = $('turn-dot'), text = $('turn-text');
@@ -2053,6 +2106,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
     if (!room) return;
     // creator: transition out of the waiting room once black joins
     if (mode === 'multi' && !gameActive && myColor === 'w' && room.players && room.players.b) {
+      opponentName = (room.players.b && room.players.b.name) || null;
       enterGameScreen();
       $('room-pill').textContent = roomId;
       $('room-pill').classList.remove('hidden');
