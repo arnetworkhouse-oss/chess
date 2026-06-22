@@ -354,6 +354,24 @@ html, body {
 .gameover-title { font-family: 'Cinzel', serif; font-weight: 800; font-size: 1.7rem; color: var(--ivory); margin-bottom: 0.4rem; }
 .gameover-reason { color: rgba(242,233,216,0.7); font-size: 0.9rem; }
 
+/* --------------------------------------------------------- room loader */
+.room-loader-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem;
+  background: rgba(13,12,10,0.82); backdrop-filter: blur(6px);
+  animation: fade-in 0.18s ease;
+}
+.room-loader-ring {
+  width: 3.2rem; height: 3.2rem; border-radius: 50%;
+  border: 3px solid rgba(212,175,102,0.18);
+  border-top-color: var(--brass-bright);
+  animation: spin 0.9s linear infinite;
+}
+.room-loader-text {
+  font-family: 'Cinzel', serif; font-size: 0.9rem; letter-spacing: 0.12em;
+  color: rgba(242,233,216,0.7);
+}
+
 .ai-thinking {
   position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 30;
   background: var(--panel-glass); border: 1px solid var(--panel-border); border-radius: 999px;
@@ -371,6 +389,12 @@ html, body {
 <!-- ambient backdrop -->
 <div class="bg-wash" aria-hidden="true"></div>
 <div class="bg-grain" aria-hidden="true"></div>
+
+<!-- room creation / join loader -->
+<div id="room-loader" class="room-loader-overlay hidden">
+  <div class="room-loader-ring"></div>
+  <p class="room-loader-text" id="room-loader-text">Creating room…</p>
+</div>
 
 <!-- ============================== MODE SELECT ============================== -->
 <div id="mode-screen" class="screen-overlay flex flex-col items-center justify-center p-4">
@@ -1955,8 +1979,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
     enterGameScreen();
   });
 
+  function showRoomLoader(text) {
+    $('room-loader-text').textContent = text || 'Please wait…';
+    $('room-loader').classList.remove('hidden');
+  }
+  function hideRoomLoader() {
+    $('room-loader').classList.add('hidden');
+  }
+
   $('btn-create-room').addEventListener('click', async () => {
     $('multi-error').classList.add('hidden');
+    showRoomLoader('Creating room…');
     try {
       mode = 'multi'; myColor = 'w'; orientation = 'w';
       opponentName = null;
@@ -1964,9 +1997,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
       roomId = await window.Multiplayer.createRoom(serializeState(state), myDisplayName());
       appliedMoveCount = 0;
       $('room-code-display').textContent = roomId;
+      hideRoomLoader();
       showModePanel('panel-waiting');
       unsubscribeRoom = window.Multiplayer.listenRoom(roomId, onRoomUpdate);
     } catch (err) {
+      hideRoomLoader();
       showMultiError(err);
     }
   });
@@ -1979,16 +2014,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { getAIMov
     $('multi-error').classList.add('hidden');
     const code = $('join-code-input').value.trim().replace(/\D/g, '');
     if (code.length !== 6) { showMultiError(new Error('Enter the 6-digit room code.')); return; }
+    showRoomLoader('Joining room…');
     try {
       mode = 'multi'; myColor = 'b'; orientation = 'b';
       opponentName = null;
       roomId = await window.Multiplayer.joinRoom(code, myDisplayName());
       appliedMoveCount = 0;
       unsubscribeRoom = window.Multiplayer.listenRoom(roomId, onRoomUpdate);
+      hideRoomLoader();
       enterGameScreen();
       $('room-pill').textContent = roomId;
       $('room-pill').classList.remove('hidden');
     } catch (err) {
+      hideRoomLoader();
       showMultiError(err);
     }
   });
